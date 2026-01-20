@@ -1,1 +1,0 @@
-if your contract transfering money to an adress defined by the users, it might cause it to fail if used a contract adress instead of a wallet adress, cause contracts smight not have a recieve or fallback to accept eth.
