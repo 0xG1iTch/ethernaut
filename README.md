@@ -148,3 +148,53 @@
 - Don’t rely on external contracts behaving “honestly” or consistently
 
 ---
+## 11. Privacy
+
+**Idea:** Packed storage
+
+**Notes:**
+- State variables are packed into 32‑byte slots in declaration order.
+- Fixed arrays like `bytes32[3]` get one slot per element (slot 3, 4, 5).
+- `unlock(bytes16)` needs first 16 bytes of `data[2]` (slot 5).
+- Use `vm.load(instance, 5)` to read slot 5, then `bytes16(slotValue)`.
+- All storage is readable, reconstruct private data with storage layout knowledge.
+
+---
+## 12. GatekeeperOne
+
+**Idea:** Three gates must be bypassed simultaneously. contract caller - gas condition - bit manipulation.
+
+**Notes:**
+- Gate 1: `msg.sender != tx.origin` -> call from contract
+- Gate 2: `gasleft() % 8191 == 0` -> brute force gas with `call{gas: ...}`.
+- Gate 3: Craft `bytes8` where:
+  - Bits 0-15 = lowest 16 bits of `tx.origin`
+  - Bits 16-31 = `0x0000`
+  - Bits 32-63 = non-zero (set bit 32 to 1)
+- `uint32(key) == uint16(key)` requires bits 16-31 = 0.
+- Brute force small gas offsets until one satisfies the modulo condition.
+
+---
+## 13. GatekeeperTwo
+
+**Idea:** Constructor extcodesize trick + XOR
+
+**Notes:**
+- Gate 1: `msg.sender != tx.origin` -> call from contract.
+- Gate 2: `extcodesize(caller()) == 0` -> call `enter()` from constructor because code not deployed yet.
+- Gate 3: `hash(msg.sender) ^ gateKey == 0xFFFFFFFFFFFFFFFF`
+  - simple XOR: if `A ^ K = M`, then `K = A ^ M`
+  - `gateKey = uint64(bytes8(keccak256(abi.encodePacked(address(this))))) ^ type(uint64).max`
+- constructor calls `enter()` automatically
+
+---
+## 14. NaughtCoin
+
+**Idea:** ERC20 has multiple ways to move tokens
+
+**Notes:**
+- ERC20 has `transfer`, direct transfer. and `approve` + `transferFrom`, delegated.
+- the contract only overrode `transfer` with timelock, `approve` + `transferFrom` still works.
+- `approve(spender, amount)` gives permission to spend tokens
+- `transferFrom(from, to, amount)` spends that permission as `spender`
+- `player.approve(attacker, balance)` + `attacker.transferFrom(player, anywhere, balance)`
