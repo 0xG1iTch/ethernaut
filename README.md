@@ -198,3 +198,16 @@
 - `approve(spender, amount)` gives permission to spend tokens
 - `transferFrom(from, to, amount)` spends that permission as `spender`
 - `player.approve(attacker, balance)` + `attacker.transferFrom(player, anywhere, balance)`
+
+---
+## 15. Preservation
+
+**Idea:** Delegatecall with mismatched storage layouts lets you overwrite slots.
+
+**Notes:**
+- `delegatecall` runs external code in caller's storage context.
+- LibraryContract has `storedTime` in slot 0; Preservation has `timeZone1Library` in slot 0.
+- When LibraryContract writes to its slot 0 via delegatecall, it overwrites Preservation's slot 0.
+- Attack: (1) Call `setFirstTime(maliciousLibraryAddress)` to overwrite slot 0, (2) Call `setFirstTime(yourAddress)` - now delegates to your contract which writes to slot 2 (owner).
+- Storage layouts must match exactly between caller and delegatecall target.
+- Type casting: `address` → `uint160` → `uint256` to pass address as uint256 parameter.
